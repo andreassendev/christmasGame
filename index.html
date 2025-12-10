@@ -133,6 +133,21 @@
             font-size: 0.9rem;
         }
 
+        /* Show appropriate control hints based on device */
+        .mobile-hint {
+            display: none;
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            /* Touch device detected */
+            .desktop-hint {
+                display: none;
+            }
+            .mobile-hint {
+                display: inline;
+            }
+        }
+
         /* ========== PLAYER INFO ========== */
         .player-info {
             text-align: center;
@@ -349,6 +364,58 @@
         /* ========== CANVAS WRAPPER ========== */
         .canvas-wrapper {
             position: relative;
+            /* Prevent text selection on touch */
+            -webkit-user-select: none;
+            user-select: none;
+            /* Prevent callout on long press */
+            -webkit-touch-callout: none;
+        }
+
+        /* Touch zone indicators (mobile only) */
+        .touch-zones {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .touch-zones {
+                display: flex;
+            }
+        }
+
+        .touch-zone {
+            flex: 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            padding-bottom: 80px;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+
+        .touch-zone.active {
+            opacity: 1;
+        }
+
+        .touch-zone-left {
+            background: linear-gradient(90deg, rgba(100, 150, 255, 0.15) 0%, transparent 100%);
+            border-radius: 8px 0 0 8px;
+        }
+
+        .touch-zone-right {
+            background: linear-gradient(90deg, transparent 0%, rgba(100, 150, 255, 0.15) 100%);
+            border-radius: 0 8px 8px 0;
+        }
+
+        .touch-zone-icon {
+            font-size: 2rem;
+            color: rgba(255, 255, 255, 0.6);
         }
 
         /* ========== LEADERBOARD PANEL ========== */
@@ -555,10 +622,11 @@
             <!-- Header Section -->
             <div class="game-header">
                 <h1 class="game-title">🎅 Santa Sled Run 🎄</h1>
-                <p class="instructions">
-                    Use <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to move the sled. 
-                    Catch gifts 🎁, avoid snowballs ❄️!
-                </p>
+            <p class="instructions">
+                <span class="desktop-hint">Use <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to move.</span>
+                <span class="mobile-hint">Touch left/right side to move.</span>
+                Catch gifts 🎁, avoid snowballs ❄️!
+            </p>
             </div>
 
             <!-- Player Info -->
@@ -585,6 +653,16 @@
             <!-- Game Canvas -->
             <div class="canvas-wrapper">
                 <canvas id="gameCanvas" width="480" height="600"></canvas>
+                
+                <!-- Touch Zone Indicators (Mobile) -->
+                <div class="touch-zones">
+                    <div class="touch-zone touch-zone-left" id="touchZoneLeft">
+                        <span class="touch-zone-icon">◀</span>
+                    </div>
+                    <div class="touch-zone touch-zone-right" id="touchZoneRight">
+                        <span class="touch-zone-icon">▶</span>
+                    </div>
+                </div>
                 
                 <!-- Username Entry Overlay -->
                 <div class="overlay visible" id="usernameOverlay">
@@ -1257,6 +1335,100 @@
         usernameInput.addEventListener('input', () => {
             startBtn.disabled = !usernameInput.value.trim();
         });
+
+        // ============================================
+        // TOUCH CONTROLS (Mobile Support)
+        // ============================================
+        // Touch zone elements for visual feedback
+        const touchZoneLeft = document.getElementById('touchZoneLeft');
+        const touchZoneRight = document.getElementById('touchZoneRight');
+
+        // Update visual touch indicators
+        function updateTouchZoneVisuals() {
+            if (touchZoneLeft && touchZoneRight) {
+                touchZoneLeft.classList.toggle('active', keys.left);
+                touchZoneRight.classList.toggle('active', keys.right);
+            }
+        }
+
+        // Handle touch input - left half moves left, right half moves right
+        function handleTouchStart(e) {
+            if (!isGameStarted || isGameOver) return;
+            
+            // Prevent default to avoid scrolling while playing
+            e.preventDefault();
+            
+            // Process all touch points
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const canvasRect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX;
+                
+                // Check if touch is on left or right half of canvas
+                const canvasCenterX = canvasRect.left + canvasRect.width / 2;
+                
+                if (touchX < canvasCenterX) {
+                    keys.left = true;
+                } else {
+                    keys.right = true;
+                }
+            }
+            
+            updateTouchZoneVisuals();
+        }
+
+        function handleTouchEnd(e) {
+            // Reset keys based on remaining touches
+            keys.left = false;
+            keys.right = false;
+            
+            // Re-check remaining touches
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const canvasRect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX;
+                const canvasCenterX = canvasRect.left + canvasRect.width / 2;
+                
+                if (touchX < canvasCenterX) {
+                    keys.left = true;
+                } else {
+                    keys.right = true;
+                }
+            }
+            
+            updateTouchZoneVisuals();
+        }
+
+        function handleTouchMove(e) {
+            if (!isGameStarted || isGameOver) return;
+            e.preventDefault();
+            
+            // Reset and recalculate based on current touch positions
+            keys.left = false;
+            keys.right = false;
+            
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                const canvasRect = canvas.getBoundingClientRect();
+                const touchX = touch.clientX;
+                const canvasCenterX = canvasRect.left + canvasRect.width / 2;
+                
+                if (touchX < canvasCenterX) {
+                    keys.left = true;
+                } else {
+                    keys.right = true;
+                }
+            }
+            
+            updateTouchZoneVisuals();
+        }
+
+        // Add touch event listeners to canvas wrapper (covers the game area)
+        const canvasWrapper = document.querySelector('.canvas-wrapper');
+        canvasWrapper.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvasWrapper.addEventListener('touchend', handleTouchEnd, { passive: false });
+        canvasWrapper.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+        canvasWrapper.addEventListener('touchmove', handleTouchMove, { passive: false });
 
         // Button handlers
         startBtn.addEventListener('click', startGame);
