@@ -14,6 +14,7 @@
     - Catch falling gifts (🎁) to score points
     - Avoid snowballs (❄️) - hitting one ends the game
     - Difficulty increases as your score grows
+    - Daily leaderboard tracks best scores for each day
     
     CONTROLS:
     - Left Arrow (←) or A key: Move sled left
@@ -27,6 +28,7 @@
     - SPEED_INCREASE_PER_LEVEL: How much faster objects fall per level (default: 0.5)
     - SPAWN_DECREASE_PER_LEVEL: How much faster spawning gets per level in ms (default: 100)
     - GIFT_PROBABILITY: Chance of spawning a gift vs snowball (default: 0.6 = 60%)
+    - LEADERBOARD_MAX_ENTRIES: Max entries in daily leaderboard (default: 10)
     
     ============================================
     -->
@@ -48,7 +50,7 @@
             justify-content: center;
             padding: 20px;
             color: #e8f0ff;
-            overflow: hidden;
+            overflow-x: hidden;
         }
 
         /* Snowfall background effect */
@@ -75,6 +77,15 @@
         @keyframes snowfall {
             from { background-position: 0 0; }
             to { background-position: 0 200px; }
+        }
+
+        /* ========== MAIN LAYOUT ========== */
+        .main-wrapper {
+            display: flex;
+            gap: 24px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         /* ========== GAME CONTAINER ========== */
@@ -120,6 +131,21 @@
             padding: 2px 8px;
             font-family: inherit;
             font-size: 0.9rem;
+        }
+
+        /* ========== PLAYER INFO ========== */
+        .player-info {
+            text-align: center;
+            margin-bottom: 12px;
+            padding: 8px 16px;
+            background: rgba(107, 207, 107, 0.15);
+            border-radius: 8px;
+            border: 1px solid rgba(107, 207, 107, 0.3);
+        }
+
+        .player-info span {
+            color: #6bcf6b;
+            font-weight: 600;
         }
 
         /* ========== SCORE PANEL ========== */
@@ -171,26 +197,94 @@
             background: linear-gradient(180deg, #0d1a2d 0%, #152238 100%);
         }
 
-        /* ========== GAME OVER OVERLAY ========== */
-        .game-over-overlay {
+        /* ========== OVERLAYS ========== */
+        .overlay {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(10, 20, 40, 0.92);
+            background: rgba(10, 20, 40, 0.95);
             display: none;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             border-radius: 8px;
             z-index: 10;
+            padding: 20px;
         }
 
-        .game-over-overlay.visible {
+        .overlay.visible {
             display: flex;
         }
 
+        /* ========== USERNAME MODAL ========== */
+        .username-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #ffd93d;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .username-subtitle {
+            font-size: 1rem;
+            color: #9bb8e8;
+            margin-bottom: 24px;
+            text-align: center;
+        }
+
+        .username-input {
+            width: 100%;
+            max-width: 280px;
+            padding: 14px 18px;
+            font-size: 1.1rem;
+            border: 2px solid rgba(100, 150, 255, 0.3);
+            border-radius: 12px;
+            background: rgba(0, 20, 50, 0.8);
+            color: #e8f0ff;
+            text-align: center;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .username-input:focus {
+            border-color: #6bcf6b;
+            box-shadow: 0 0 20px rgba(107, 207, 107, 0.3);
+        }
+
+        .username-input::placeholder {
+            color: #7a9fd4;
+        }
+
+        .start-btn {
+            margin-top: 20px;
+            background: linear-gradient(135deg, #6bcf6b 0%, #4aa84a 100%);
+            color: white;
+            border: none;
+            padding: 14px 48px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(107, 207, 107, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .start-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(107, 207, 107, 0.6);
+        }
+
+        .start-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ========== GAME OVER OVERLAY ========== */
         .game-over-title {
             font-size: 2.5rem;
             font-weight: 700;
@@ -222,6 +316,12 @@
             50% { opacity: 0.8; transform: scale(1.05); }
         }
 
+        .leaderboard-position {
+            font-size: 1rem;
+            color: #ffd93d;
+            margin-bottom: 20px;
+        }
+
         .play-again-btn {
             background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
             color: white;
@@ -251,6 +351,132 @@
             position: relative;
         }
 
+        /* ========== LEADERBOARD PANEL ========== */
+        .leaderboard-container {
+            background: rgba(10, 25, 50, 0.8);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 
+                0 0 40px rgba(100, 150, 255, 0.15),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            width: 280px;
+            max-height: 700px;
+        }
+
+        .leaderboard-header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .leaderboard-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #ffd93d;
+            margin-bottom: 4px;
+        }
+
+        .leaderboard-date {
+            font-size: 0.85rem;
+            color: #7a9fd4;
+        }
+
+        .leaderboard-list {
+            list-style: none;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            background: rgba(0, 20, 50, 0.5);
+            border-radius: 8px;
+            border: 1px solid rgba(100, 150, 255, 0.1);
+            transition: all 0.2s ease;
+        }
+
+        .leaderboard-item:hover {
+            background: rgba(0, 30, 70, 0.6);
+        }
+
+        .leaderboard-item.current-player {
+            background: rgba(107, 207, 107, 0.15);
+            border-color: rgba(107, 207, 107, 0.3);
+        }
+
+        .leaderboard-item.top-3:nth-child(1) {
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, rgba(255, 180, 0, 0.1) 100%);
+            border-color: rgba(255, 215, 0, 0.4);
+        }
+
+        .leaderboard-item.top-3:nth-child(2) {
+            background: linear-gradient(135deg, rgba(192, 192, 192, 0.2) 0%, rgba(160, 160, 160, 0.1) 100%);
+            border-color: rgba(192, 192, 192, 0.4);
+        }
+
+        .leaderboard-item.top-3:nth-child(3) {
+            background: linear-gradient(135deg, rgba(205, 127, 50, 0.2) 0%, rgba(180, 100, 30, 0.1) 100%);
+            border-color: rgba(205, 127, 50, 0.4);
+        }
+
+        .leaderboard-rank {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            border-radius: 50%;
+            margin-right: 12px;
+            background: rgba(100, 150, 255, 0.2);
+            color: #9bb8e8;
+        }
+
+        .leaderboard-item.top-3:nth-child(1) .leaderboard-rank {
+            background: linear-gradient(135deg, #ffd700, #ffb700);
+            color: #1a1a1a;
+        }
+
+        .leaderboard-item.top-3:nth-child(2) .leaderboard-rank {
+            background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+            color: #1a1a1a;
+        }
+
+        .leaderboard-item.top-3:nth-child(3) .leaderboard-rank {
+            background: linear-gradient(135deg, #cd7f32, #b46420);
+            color: #1a1a1a;
+        }
+
+        .leaderboard-name {
+            flex: 1;
+            font-size: 0.95rem;
+            color: #e8f0ff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .leaderboard-score {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #ffd93d;
+            margin-left: 8px;
+        }
+
+        .leaderboard-empty {
+            text-align: center;
+            color: #7a9fd4;
+            padding: 30px 20px;
+            font-size: 0.95rem;
+        }
+
+        .leaderboard-empty-icon {
+            font-size: 2.5rem;
+            margin-bottom: 12px;
+        }
+
         /* ========== WATERMARK ========== */
         .watermark {
             position: fixed;
@@ -272,6 +498,19 @@
         }
 
         /* ========== RESPONSIVE ========== */
+        @media (max-width: 800px) {
+            .main-wrapper {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .leaderboard-container {
+                width: 100%;
+                max-width: 480px;
+                margin-top: 20px;
+            }
+        }
+
         @media (max-width: 600px) {
             .game-container {
                 padding: 16px;
@@ -296,6 +535,14 @@
             .game-over-title {
                 font-size: 1.8rem;
             }
+
+            .username-title {
+                font-size: 1.5rem;
+            }
+
+            .leaderboard-container {
+                padding: 16px;
+            }
         }
     </style>
 </head>
@@ -303,46 +550,76 @@
     <!-- Watermark -->
     <div class="watermark"><span>Andreassen</span> Technology AS</div>
 
-    <div class="game-container">
-        <!-- Header Section -->
-        <div class="game-header">
-            <h1 class="game-title">🎅 Santa Sled Run 🎄</h1>
-            <p class="instructions">
-                Use <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to move the sled. 
-                Catch gifts 🎁, avoid snowballs ❄️!
-            </p>
-        </div>
+    <div class="main-wrapper">
+        <div class="game-container">
+            <!-- Header Section -->
+            <div class="game-header">
+                <h1 class="game-title">🎅 Santa Sled Run 🎄</h1>
+                <p class="instructions">
+                    Use <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to move the sled. 
+                    Catch gifts 🎁, avoid snowballs ❄️!
+                </p>
+            </div>
 
-        <!-- Score Panel -->
-        <div class="score-panel">
-            <div class="score-item">
-                <div class="score-label">Score</div>
-                <div class="score-value current" id="scoreDisplay">0</div>
+            <!-- Player Info -->
+            <div class="player-info" id="playerInfo" style="display: none;">
+                Playing as: <span id="currentPlayerName">-</span>
             </div>
-            <div class="score-item">
-                <div class="score-label">Level</div>
-                <div class="score-value level" id="levelDisplay">1</div>
-            </div>
-            <div class="score-item">
-                <div class="score-label">Best</div>
-                <div class="score-value high" id="highScoreDisplay">0</div>
-            </div>
-        </div>
 
-        <!-- Game Canvas -->
-        <div class="canvas-wrapper">
-            <canvas id="gameCanvas" width="480" height="600"></canvas>
-            
-            <!-- Game Over Overlay -->
-            <div class="game-over-overlay" id="gameOverOverlay">
-                <div class="game-over-title">💥 Game Over!</div>
-                <div class="game-over-score">Your score: <span id="finalScore">0</span></div>
-                <div class="game-over-score">Best score: <span id="finalHighScore">0</span></div>
-                <div class="new-high-score" id="newHighScoreMsg" style="display: none;">
-                    🎉 New High Score! 🎉
+            <!-- Score Panel -->
+            <div class="score-panel">
+                <div class="score-item">
+                    <div class="score-label">Score</div>
+                    <div class="score-value current" id="scoreDisplay">0</div>
                 </div>
-                <button class="play-again-btn" id="playAgainBtn">Play Again</button>
+                <div class="score-item">
+                    <div class="score-label">Level</div>
+                    <div class="score-value level" id="levelDisplay">1</div>
+                </div>
+                <div class="score-item">
+                    <div class="score-label">Best</div>
+                    <div class="score-value high" id="highScoreDisplay">0</div>
+                </div>
             </div>
+
+            <!-- Game Canvas -->
+            <div class="canvas-wrapper">
+                <canvas id="gameCanvas" width="480" height="600"></canvas>
+                
+                <!-- Username Entry Overlay -->
+                <div class="overlay visible" id="usernameOverlay">
+                    <div class="username-title">🎄 Welcome! 🎄</div>
+                    <div class="username-subtitle">Enter your name to join today's leaderboard</div>
+                    <input type="text" class="username-input" id="usernameInput" placeholder="Your name..." maxlength="20" autocomplete="off">
+                    <button class="start-btn" id="startBtn" disabled>Start Game</button>
+                </div>
+
+                <!-- Game Over Overlay -->
+                <div class="overlay" id="gameOverOverlay">
+                    <div class="game-over-title">💥 Game Over!</div>
+                    <div class="game-over-score">Your score: <span id="finalScore">0</span></div>
+                    <div class="game-over-score">Best score: <span id="finalHighScore">0</span></div>
+                    <div class="new-high-score" id="newHighScoreMsg" style="display: none;">
+                        🎉 New Personal Best! 🎉
+                    </div>
+                    <div class="leaderboard-position" id="leaderboardPosition" style="display: none;"></div>
+                    <button class="play-again-btn" id="playAgainBtn">Play Again</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Daily Leaderboard -->
+        <div class="leaderboard-container">
+            <div class="leaderboard-header">
+                <div class="leaderboard-title">🏆 Today's Leaderboard</div>
+                <div class="leaderboard-date" id="leaderboardDate"></div>
+            </div>
+            <ul class="leaderboard-list" id="leaderboardList">
+                <li class="leaderboard-empty">
+                    <div class="leaderboard-empty-icon">🎁</div>
+                    No scores yet today!<br>Be the first to play!
+                </li>
+            </ul>
         </div>
     </div>
 
@@ -373,6 +650,9 @@
             
             // Spawn probabilities
             GIFT_PROBABILITY: 0.6, // 60% chance for gift, 40% for snowball
+            
+            // Leaderboard settings
+            LEADERBOARD_MAX_ENTRIES: 10, // Maximum entries in daily leaderboard
         };
 
         // ============================================
@@ -384,10 +664,18 @@
         const levelDisplay = document.getElementById('levelDisplay');
         const highScoreDisplay = document.getElementById('highScoreDisplay');
         const gameOverOverlay = document.getElementById('gameOverOverlay');
+        const usernameOverlay = document.getElementById('usernameOverlay');
         const finalScoreDisplay = document.getElementById('finalScore');
         const finalHighScoreDisplay = document.getElementById('finalHighScore');
         const newHighScoreMsg = document.getElementById('newHighScoreMsg');
+        const leaderboardPosition = document.getElementById('leaderboardPosition');
         const playAgainBtn = document.getElementById('playAgainBtn');
+        const usernameInput = document.getElementById('usernameInput');
+        const startBtn = document.getElementById('startBtn');
+        const playerInfo = document.getElementById('playerInfo');
+        const currentPlayerName = document.getElementById('currentPlayerName');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const leaderboardDate = document.getElementById('leaderboardDate');
 
         // ============================================
         // GAME STATE
@@ -396,9 +684,11 @@
         let level = 1;
         let highScore = 0;
         let isGameOver = false;
+        let isGameStarted = false;
         let lastSpawnTime = 0;
         let currentSpawnInterval = CONFIG.BASE_SPAWN_INTERVAL;
         let currentFallSpeed = CONFIG.BASE_FALL_SPEED;
+        let playerName = '';
 
         // Input state
         const keys = {
@@ -411,19 +701,149 @@
         let snowballs = [];
 
         // ============================================
+        // DAILY LEADERBOARD SYSTEM (localStorage)
+        // ============================================
+        // Get today's date as a string key (YYYY-MM-DD format)
+        function getTodayKey() {
+            const today = new Date();
+            return today.toISOString().split('T')[0];
+        }
+
+        // Get formatted date for display
+        function getFormattedDate() {
+            const today = new Date();
+            const options = { weekday: 'long', month: 'long', day: 'numeric' };
+            return today.toLocaleDateString('en-US', options);
+        }
+
+        // Load daily leaderboard from localStorage
+        // Structure: { date: "YYYY-MM-DD", scores: [{name, score, timestamp}] }
+        function loadDailyLeaderboard() {
+            const todayKey = getTodayKey();
+            const stored = localStorage.getItem('santaSledRunDailyLeaderboard');
+            
+            if (stored) {
+                try {
+                    const data = JSON.parse(stored);
+                    // Check if it's today's leaderboard
+                    if (data.date === todayKey) {
+                        return data.scores || [];
+                    }
+                } catch (e) {
+                    console.error('Error parsing leaderboard:', e);
+                }
+            }
+            
+            // Return empty array if no valid data for today
+            return [];
+        }
+
+        // Save score to daily leaderboard
+        function saveToDailyLeaderboard(name, newScore) {
+            const todayKey = getTodayKey();
+            let scores = loadDailyLeaderboard();
+            
+            // Check if player already has a score today
+            const existingIndex = scores.findIndex(s => s.name.toLowerCase() === name.toLowerCase());
+            
+            if (existingIndex !== -1) {
+                // Only update if new score is better
+                if (newScore > scores[existingIndex].score) {
+                    scores[existingIndex].score = newScore;
+                    scores[existingIndex].timestamp = Date.now();
+                }
+            } else {
+                // Add new entry
+                scores.push({
+                    name: name,
+                    score: newScore,
+                    timestamp: Date.now()
+                });
+            }
+            
+            // Sort by score (descending), then by timestamp (earlier first for ties)
+            scores.sort((a, b) => {
+                if (b.score !== a.score) return b.score - a.score;
+                return a.timestamp - b.timestamp;
+            });
+            
+            // Keep only top entries
+            scores = scores.slice(0, CONFIG.LEADERBOARD_MAX_ENTRIES);
+            
+            // Save to localStorage
+            localStorage.setItem('santaSledRunDailyLeaderboard', JSON.stringify({
+                date: todayKey,
+                scores: scores
+            }));
+            
+            return scores;
+        }
+
+        // Get player's position on leaderboard
+        function getLeaderboardPosition(name, currentScore) {
+            const scores = loadDailyLeaderboard();
+            
+            // Find position based on current score
+            let position = 1;
+            for (const entry of scores) {
+                if (entry.score > currentScore) {
+                    position++;
+                } else if (entry.score === currentScore && entry.name.toLowerCase() !== name.toLowerCase()) {
+                    // For ties, check timestamp - but we'll count same score as same position
+                }
+            }
+            
+            return position;
+        }
+
+        // Render the leaderboard UI
+        function renderLeaderboard() {
+            const scores = loadDailyLeaderboard();
+            leaderboardDate.textContent = getFormattedDate();
+            
+            if (scores.length === 0) {
+                leaderboardList.innerHTML = `
+                    <li class="leaderboard-empty">
+                        <div class="leaderboard-empty-icon">🎁</div>
+                        No scores yet today!<br>Be the first to play!
+                    </li>
+                `;
+                return;
+            }
+            
+            leaderboardList.innerHTML = scores.map((entry, index) => {
+                const isCurrentPlayer = playerName && entry.name.toLowerCase() === playerName.toLowerCase();
+                const isTop3 = index < 3;
+                
+                return `
+                    <li class="leaderboard-item ${isCurrentPlayer ? 'current-player' : ''} ${isTop3 ? 'top-3' : ''}">
+                        <div class="leaderboard-rank">${index + 1}</div>
+                        <div class="leaderboard-name">${escapeHtml(entry.name)}</div>
+                        <div class="leaderboard-score">${entry.score}</div>
+                    </li>
+                `;
+            }).join('');
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // ============================================
         // SLEDGE CLASS
         // ============================================
-        // The player-controlled sled at the bottom of the screen
         class Sledge {
             constructor() {
                 this.width = CONFIG.SLED_WIDTH;
                 this.height = CONFIG.SLED_HEIGHT;
-                this.x = (canvas.width - this.width) / 2; // Center horizontally
-                this.y = canvas.height - this.height - 20; // Near bottom
+                this.x = (canvas.width - this.width) / 2;
+                this.y = canvas.height - this.height - 20;
                 this.speed = CONFIG.SLED_SPEED;
             }
 
-            // Update sled position based on keyboard input
             update() {
                 if (keys.left && this.x > 0) {
                     this.x -= this.speed;
@@ -431,31 +851,23 @@
                 if (keys.right && this.x < canvas.width - this.width) {
                     this.x += this.speed;
                 }
-                
-                // Clamp position to canvas bounds
                 this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
             }
 
-            // Render the sled on canvas
             draw() {
-                // Sled body (wooden brown)
                 ctx.fillStyle = '#8B4513';
                 ctx.fillRect(this.x, this.y, this.width, this.height);
                 
-                // Sled runners (dark metal)
                 ctx.fillStyle = '#2F2F2F';
                 ctx.fillRect(this.x - 5, this.y + this.height - 5, this.width + 10, 6);
                 
-                // Sled decoration (red stripe)
                 ctx.fillStyle = '#cc2222';
                 ctx.fillRect(this.x + 5, this.y + 5, this.width - 10, 8);
                 
-                // Sled highlights
                 ctx.fillStyle = '#A0522D';
                 ctx.fillRect(this.x + 5, this.y + 18, this.width - 10, 4);
             }
 
-            // Get hitbox for collision detection
             getHitbox() {
                 return {
                     x: this.x,
@@ -469,24 +881,21 @@
         // ============================================
         // GIFT CLASS
         // ============================================
-        // Falling gift objects that the player wants to catch
         class Gift {
             constructor() {
                 this.size = CONFIG.GIFT_SIZE;
                 this.x = Math.random() * (canvas.width - this.size);
-                this.y = -this.size; // Start above canvas
+                this.y = -this.size;
                 this.speed = currentFallSpeed;
                 this.rotation = 0;
                 this.rotationSpeed = (Math.random() - 0.5) * 0.1;
             }
 
-            // Update gift position (falling down)
             update() {
                 this.y += this.speed;
                 this.rotation += this.rotationSpeed;
             }
 
-            // Render the gift emoji on canvas
             draw() {
                 ctx.save();
                 ctx.translate(this.x + this.size / 2, this.y + this.size / 2);
@@ -498,7 +907,6 @@
                 ctx.restore();
             }
 
-            // Get hitbox for collision detection
             getHitbox() {
                 return {
                     x: this.x,
@@ -508,7 +916,6 @@
                 };
             }
 
-            // Check if gift is off screen (below canvas)
             isOffScreen() {
                 return this.y > canvas.height;
             }
@@ -517,23 +924,19 @@
         // ============================================
         // SNOWBALL CLASS
         // ============================================
-        // Falling obstacles that the player must avoid
         class Snowball {
             constructor() {
                 this.radius = CONFIG.SNOWBALL_RADIUS;
                 this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
-                this.y = -this.radius; // Start above canvas
+                this.y = -this.radius;
                 this.speed = currentFallSpeed;
             }
 
-            // Update snowball position (falling down)
             update() {
                 this.y += this.speed;
             }
 
-            // Render the snowball as a white circle with shading
             draw() {
-                // Outer glow
                 const gradient = ctx.createRadialGradient(
                     this.x, this.y, 0,
                     this.x, this.y, this.radius
@@ -547,14 +950,12 @@
                 ctx.fillStyle = gradient;
                 ctx.fill();
                 
-                // Inner highlight
                 ctx.beginPath();
                 ctx.arc(this.x - 4, this.y - 4, this.radius * 0.3, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
                 ctx.fill();
             }
 
-            // Get hitbox for collision detection (circle represented as center + radius)
             getHitbox() {
                 return {
                     x: this.x,
@@ -563,7 +964,6 @@
                 };
             }
 
-            // Check if snowball is off screen (below canvas)
             isOffScreen() {
                 return this.y > canvas.height + this.radius;
             }
@@ -572,7 +972,6 @@
         // ============================================
         // COLLISION DETECTION
         // ============================================
-        // Checks if the sled hitbox intersects with a rectangular object (gift)
         function checkRectCollision(rect1, rect2) {
             return rect1.x < rect2.x + rect2.width &&
                    rect1.x + rect1.width > rect2.x &&
@@ -580,25 +979,18 @@
                    rect1.y + rect1.height > rect2.y;
         }
 
-        // Checks if a rectangle (sled) intersects with a circle (snowball)
         function checkRectCircleCollision(rect, circle) {
-            // Find the closest point on the rectangle to the circle center
             const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
             const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
-            
-            // Calculate distance from circle center to closest point
             const distanceX = circle.x - closestX;
             const distanceY = circle.y - closestY;
             const distanceSquared = distanceX * distanceX + distanceY * distanceY;
-            
-            // Collision if distance is less than circle radius
             return distanceSquared < circle.radius * circle.radius;
         }
 
         // ============================================
         // HIGH SCORE SYSTEM (localStorage)
         // ============================================
-        // Load high score from localStorage
         function loadHighScore() {
             const stored = localStorage.getItem('santaSledRunHighScore');
             if (stored) {
@@ -608,12 +1000,11 @@
             highScoreDisplay.textContent = highScore;
         }
 
-        // Save high score to localStorage if current score beats it
         function saveHighScore() {
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem('santaSledRunHighScore', highScore.toString());
-                return true; // Indicates new high score
+                return true;
             }
             return false;
         }
@@ -621,12 +1012,10 @@
         // ============================================
         // DIFFICULTY PROGRESSION
         // ============================================
-        // Calculate current level based on score
         function calculateLevel() {
             return Math.floor(score / CONFIG.DIFFICULTY_INCREMENT) + 1;
         }
 
-        // Update difficulty settings based on current level
         function updateDifficulty() {
             const newLevel = calculateLevel();
             
@@ -635,11 +1024,9 @@
                 levelDisplay.textContent = level;
             }
             
-            // Increase fall speed based on level
             currentFallSpeed = CONFIG.BASE_FALL_SPEED + 
                                (level - 1) * CONFIG.SPEED_INCREASE_PER_LEVEL;
             
-            // Decrease spawn interval based on level (more frequent spawns)
             currentSpawnInterval = Math.max(
                 CONFIG.MIN_SPAWN_INTERVAL,
                 CONFIG.BASE_SPAWN_INTERVAL - (level - 1) * CONFIG.SPAWN_DECREASE_PER_LEVEL
@@ -649,12 +1036,10 @@
         // ============================================
         // OBJECT SPAWNING
         // ============================================
-        // Spawn either a gift or snowball based on probability
         function spawnObject(timestamp) {
             if (timestamp - lastSpawnTime >= currentSpawnInterval) {
                 lastSpawnTime = timestamp;
                 
-                // Determine whether to spawn gift or snowball
                 if (Math.random() < CONFIG.GIFT_PROBABILITY) {
                     gifts.push(new Gift());
                 } else {
@@ -668,84 +1053,59 @@
         // ============================================
         let sledge;
 
-        // Main game loop using requestAnimationFrame
         function gameLoop(timestamp) {
-            // Stop loop if game is over
-            if (isGameOver) return;
+            if (isGameOver || !isGameStarted) return;
             
-            // Clear canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            
-            // Draw background decorations (stars)
             drawBackground();
-            
-            // Update difficulty based on score
             updateDifficulty();
-            
-            // Spawn new objects
             spawnObject(timestamp);
-            
-            // Update sled
             sledge.update();
             
-            // Update and check gifts
             for (let i = gifts.length - 1; i >= 0; i--) {
                 const gift = gifts[i];
-                gift.speed = currentFallSpeed; // Update speed for difficulty
+                gift.speed = currentFallSpeed;
                 gift.update();
                 
-                // Check collision with sled
                 if (checkRectCollision(sledge.getHitbox(), gift.getHitbox())) {
-                    // Gift caught! Increase score
                     score++;
                     scoreDisplay.textContent = score;
                     gifts.splice(i, 1);
                     continue;
                 }
                 
-                // Remove if off screen
                 if (gift.isOffScreen()) {
                     gifts.splice(i, 1);
                 }
             }
             
-            // Update and check snowballs
             for (let i = snowballs.length - 1; i >= 0; i--) {
                 const snowball = snowballs[i];
-                snowball.speed = currentFallSpeed; // Update speed for difficulty
+                snowball.speed = currentFallSpeed;
                 snowball.update();
                 
-                // Check collision with sled
                 if (checkRectCircleCollision(sledge.getHitbox(), snowball.getHitbox())) {
-                    // Hit by snowball! Game over
                     triggerGameOver();
                     return;
                 }
                 
-                // Remove if off screen
                 if (snowball.isOffScreen()) {
                     snowballs.splice(i, 1);
                 }
             }
             
-            // Draw all game objects
             gifts.forEach(gift => gift.draw());
             snowballs.forEach(snowball => snowball.draw());
             sledge.draw();
-            
-            // Draw ground line
             drawGround();
             
-            // Continue game loop
             requestAnimationFrame(gameLoop);
         }
 
         // ============================================
         // RENDERING HELPERS
         // ============================================
-        // Draw background stars/decorations
         function drawBackground() {
-            // Draw some static stars
             ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
             const starPositions = [
                 [50, 50], [150, 80], [300, 40], [420, 90], [200, 150],
@@ -758,9 +1118,7 @@
             });
         }
 
-        // Draw ground decoration
         function drawGround() {
-            // Snow ground
             const groundGradient = ctx.createLinearGradient(0, canvas.height - 15, 0, canvas.height);
             groundGradient.addColorStop(0, 'rgba(200, 220, 255, 0.3)');
             groundGradient.addColorStop(1, 'rgba(150, 180, 220, 0.5)');
@@ -774,18 +1132,34 @@
         function triggerGameOver() {
             isGameOver = true;
             
-            // Check and save high score
             const isNewHighScore = saveHighScore();
             
-            // Update game over display
+            // Save to daily leaderboard
+            saveToDailyLeaderboard(playerName, score);
+            const position = getLeaderboardPosition(playerName, score);
+            
+            // Update UI
             finalScoreDisplay.textContent = score;
             finalHighScoreDisplay.textContent = highScore;
             highScoreDisplay.textContent = highScore;
             
-            // Show new high score message if applicable
             newHighScoreMsg.style.display = isNewHighScore ? 'block' : 'none';
             
-            // Show overlay
+            // Show leaderboard position
+            if (position <= CONFIG.LEADERBOARD_MAX_ENTRIES) {
+                leaderboardPosition.style.display = 'block';
+                if (position === 1) {
+                    leaderboardPosition.innerHTML = '👑 #1 on today\'s leaderboard!';
+                } else {
+                    leaderboardPosition.innerHTML = `📊 #${position} on today's leaderboard`;
+                }
+            } else {
+                leaderboardPosition.style.display = 'none';
+            }
+            
+            // Update leaderboard display
+            renderLeaderboard();
+            
             gameOverOverlay.classList.add('visible');
         }
 
@@ -793,7 +1167,6 @@
         // GAME RESET
         // ============================================
         function resetGame() {
-            // Reset game state
             score = 0;
             level = 1;
             isGameOver = false;
@@ -801,32 +1174,66 @@
             currentSpawnInterval = CONFIG.BASE_SPAWN_INTERVAL;
             currentFallSpeed = CONFIG.BASE_FALL_SPEED;
             
-            // Clear objects
             gifts = [];
             snowballs = [];
-            
-            // Reset sled
             sledge = new Sledge();
             
-            // Update displays
             scoreDisplay.textContent = '0';
             levelDisplay.textContent = '1';
             
-            // Hide overlay
             gameOverOverlay.classList.remove('visible');
             
-            // Start game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ============================================
+        // START GAME (with username)
+        // ============================================
+        function startGame() {
+            playerName = usernameInput.value.trim();
+            if (!playerName) return;
+            
+            // Save username for next time
+            localStorage.setItem('santaSledRunPlayerName', playerName);
+            
+            // Show player info
+            currentPlayerName.textContent = playerName;
+            playerInfo.style.display = 'block';
+            
+            // Hide username overlay
+            usernameOverlay.classList.remove('visible');
+            
+            // Start game
+            isGameStarted = true;
+            sledge = new Sledge();
+            renderLeaderboard();
             requestAnimationFrame(gameLoop);
         }
 
         // ============================================
         // INPUT HANDLING
         // ============================================
-        // Keyboard event listeners for sled movement
+        // Check if user is typing in an input field
+        function isTypingInInput() {
+            const activeElement = document.activeElement;
+            return activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA');
+        }
+
         document.addEventListener('keydown', (e) => {
+            // Don't capture game controls when typing in input fields
+            if (isTypingInInput()) {
+                // Only handle Enter key for starting the game
+                if (e.key === 'Enter' && usernameOverlay.classList.contains('visible')) {
+                    if (usernameInput.value.trim()) {
+                        startGame();
+                    }
+                }
+                return;
+            }
+
             if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
                 keys.left = true;
-                e.preventDefault(); // Prevent page scrolling
+                e.preventDefault();
             }
             if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
                 keys.right = true;
@@ -835,6 +1242,9 @@
         });
 
         document.addEventListener('keyup', (e) => {
+            // Don't process if typing in input
+            if (isTypingInInput()) return;
+
             if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
                 keys.left = false;
             }
@@ -843,14 +1253,19 @@
             }
         });
 
-        // Play again button handler
+        // Username input handling
+        usernameInput.addEventListener('input', () => {
+            startBtn.disabled = !usernameInput.value.trim();
+        });
+
+        // Button handlers
+        startBtn.addEventListener('click', startGame);
         playAgainBtn.addEventListener('click', resetGame);
 
         // ============================================
         // RESPONSIVE CANVAS
         // ============================================
         function resizeCanvas() {
-            const container = canvas.parentElement;
             const maxWidth = Math.min(480, window.innerWidth - 80);
             const scale = maxWidth / 480;
             
@@ -869,22 +1284,28 @@
         // GAME INITIALIZATION
         // ============================================
         function initGame() {
-            // Load high score from storage
             loadHighScore();
-            
-            // Resize canvas for current screen
             resizeCanvas();
             
-            // Create sled
-            sledge = new Sledge();
+            // Load saved username if exists
+            const savedName = localStorage.getItem('santaSledRunPlayerName');
+            if (savedName) {
+                usernameInput.value = savedName;
+                startBtn.disabled = false;
+            }
             
-            // Start game loop
-            requestAnimationFrame(gameLoop);
+            // Show today's date on leaderboard
+            leaderboardDate.textContent = getFormattedDate();
+            
+            // Render existing leaderboard
+            renderLeaderboard();
+            
+            // Focus username input
+            setTimeout(() => usernameInput.focus(), 100);
         }
 
-        // Start the game when page loads
+        // Start initialization
         initGame();
     </script>
 </body>
 </html>
-
