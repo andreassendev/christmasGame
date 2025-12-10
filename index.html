@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎅 Santa Sled Run</title>
+    <!--
+    ============================================
+    SANTA SLED RUN - Christmas Browser Game
+    ============================================
+    
+    HOW THE GAME WORKS:
+    - Control a sled at the bottom of the screen
+    - Catch falling gifts (🎁) to score points
+    - Avoid snowballs (❄️) - hitting one ends the game
+    - Difficulty increases as your score grows
+    
+    CONTROLS:
+    - Left Arrow (←) or A key: Move sled left
+    - Right Arrow (→) or D key: Move sled right
+    
+    CUSTOMIZATION (tweak these variables in the CONFIG object):
+    - SLED_SPEED: How fast the sled moves (default: 8)
+    - BASE_FALL_SPEED: Initial falling speed of objects (default: 2)
+    - BASE_SPAWN_INTERVAL: Initial spawn rate in ms (default: 1500)
+    - DIFFICULTY_INCREMENT: Points needed per difficulty level (default: 5)
+    - SPEED_INCREASE_PER_LEVEL: How much faster objects fall per level (default: 0.5)
+    - SPAWN_DECREASE_PER_LEVEL: How much faster spawning gets per level in ms (default: 100)
+    - GIFT_PROBABILITY: Chance of spawning a gift vs snowball (default: 0.6 = 60%)
+    
+    ============================================
+    -->
+    <style>
+        /* ========== RESET & BASE STYLES ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(180deg, #0a1628 0%, #1a2a4a 50%, #0d1a2d 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #e8f0ff;
+            overflow: hidden;
+        }
+
+        /* Snowfall background effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(2px 2px at 20px 30px, white, transparent),
+                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.8), transparent),
+                radial-gradient(1px 1px at 90px 40px, white, transparent),
+                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.6), transparent),
+                radial-gradient(1px 1px at 160px 120px, white, transparent);
+            background-size: 200px 200px;
+            animation: snowfall 10s linear infinite;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.4;
+        }
+
+        @keyframes snowfall {
+            from { background-position: 0 0; }
+            to { background-position: 0 200px; }
+        }
+
+        /* ========== GAME CONTAINER ========== */
+        .game-container {
+            background: rgba(10, 25, 50, 0.8);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 
+                0 0 40px rgba(100, 150, 255, 0.15),
+                0 0 80px rgba(50, 100, 200, 0.1),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            max-width: 100%;
+        }
+
+        /* ========== HEADER ========== */
+        .game-header {
+            text-align: center;
+            margin-bottom: 16px;
+        }
+
+        .game-title {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ff6b6b 0%, #ffd93d 50%, #6bcf6b 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 2px 10px rgba(255, 100, 100, 0.3);
+            margin-bottom: 8px;
+        }
+
+        .instructions {
+            font-size: 0.95rem;
+            color: #9bb8e8;
+            margin-bottom: 12px;
+        }
+
+        .instructions kbd {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+        }
+
+        /* ========== SCORE PANEL ========== */
+        .score-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 12px 16px;
+            background: rgba(0, 20, 50, 0.5);
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.15);
+        }
+
+        .score-item {
+            text-align: center;
+        }
+
+        .score-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #7a9fd4;
+            margin-bottom: 4px;
+        }
+
+        .score-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .score-value.current {
+            color: #ffd93d;
+        }
+
+        .score-value.level {
+            color: #6bcf6b;
+        }
+
+        .score-value.high {
+            color: #ff6b6b;
+        }
+
+        /* ========== CANVAS ========== */
+        #gameCanvas {
+            display: block;
+            border-radius: 8px;
+            border: 2px solid rgba(100, 150, 255, 0.3);
+            background: linear-gradient(180deg, #0d1a2d 0%, #152238 100%);
+        }
+
+        /* ========== GAME OVER OVERLAY ========== */
+        .game-over-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 20, 40, 0.92);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 8px;
+            z-index: 10;
+        }
+
+        .game-over-overlay.visible {
+            display: flex;
+        }
+
+        .game-over-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #ff6b6b;
+            margin-bottom: 16px;
+            text-shadow: 0 0 20px rgba(255, 100, 100, 0.5);
+        }
+
+        .game-over-score {
+            font-size: 1.3rem;
+            color: #e8f0ff;
+            margin-bottom: 8px;
+        }
+
+        .game-over-score span {
+            color: #ffd93d;
+            font-weight: 700;
+        }
+
+        .new-high-score {
+            font-size: 1.1rem;
+            color: #6bcf6b;
+            margin-bottom: 20px;
+            animation: pulse 1s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.05); }
+        }
+
+        .play-again-btn {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+            color: white;
+            border: none;
+            padding: 14px 36px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(255, 100, 100, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .play-again-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px rgba(255, 100, 100, 0.6);
+        }
+
+        .play-again-btn:active {
+            transform: translateY(0);
+        }
+
+        /* ========== CANVAS WRAPPER ========== */
+        .canvas-wrapper {
+            position: relative;
+        }
+
+        /* ========== WATERMARK ========== */
+        .watermark {
+            position: fixed;
+            bottom: 12px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.75rem;
+            color: rgba(155, 184, 232, 0.5);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .watermark span {
+            font-weight: 600;
+            color: rgba(200, 220, 255, 0.6);
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 600px) {
+            .game-container {
+                padding: 16px;
+            }
+            
+            .game-title {
+                font-size: 1.6rem;
+            }
+            
+            .instructions {
+                font-size: 0.85rem;
+            }
+            
+            .score-panel {
+                padding: 10px 12px;
+            }
+            
+            .score-value {
+                font-size: 1.2rem;
+            }
+            
+            .game-over-title {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Watermark -->
+    <div class="watermark"><span>Andreassen</span> Technology AS</div>
+
+    <div class="game-container">
+        <!-- Header Section -->
+        <div class="game-header">
+            <h1 class="game-title">🎅 Santa Sled Run 🎄</h1>
+            <p class="instructions">
+                Use <kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to move the sled. 
+                Catch gifts 🎁, avoid snowballs ❄️!
+            </p>
+        </div>
+
+        <!-- Score Panel -->
+        <div class="score-panel">
+            <div class="score-item">
+                <div class="score-label">Score</div>
+                <div class="score-value current" id="scoreDisplay">0</div>
+            </div>
+            <div class="score-item">
+                <div class="score-label">Level</div>
+                <div class="score-value level" id="levelDisplay">1</div>
+            </div>
+            <div class="score-item">
+                <div class="score-label">Best</div>
+                <div class="score-value high" id="highScoreDisplay">0</div>
+            </div>
+        </div>
+
+        <!-- Game Canvas -->
+        <div class="canvas-wrapper">
+            <canvas id="gameCanvas" width="480" height="600"></canvas>
+            
+            <!-- Game Over Overlay -->
+            <div class="game-over-overlay" id="gameOverOverlay">
+                <div class="game-over-title">💥 Game Over!</div>
+                <div class="game-over-score">Your score: <span id="finalScore">0</span></div>
+                <div class="game-over-score">Best score: <span id="finalHighScore">0</span></div>
+                <div class="new-high-score" id="newHighScoreMsg" style="display: none;">
+                    🎉 New High Score! 🎉
+                </div>
+                <button class="play-again-btn" id="playAgainBtn">Play Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // GAME CONFIGURATION
+        // ============================================
+        // Tweak these values to customize game difficulty
+        const CONFIG = {
+            // Sled settings
+            SLED_WIDTH: 80,
+            SLED_HEIGHT: 30,
+            SLED_SPEED: 8,
+            
+            // Object sizes
+            GIFT_SIZE: 32,
+            SNOWBALL_RADIUS: 15,
+            
+            // Initial difficulty settings
+            BASE_FALL_SPEED: 2,
+            BASE_SPAWN_INTERVAL: 1500, // milliseconds
+            
+            // Difficulty scaling
+            DIFFICULTY_INCREMENT: 5,      // Points needed to increase level
+            SPEED_INCREASE_PER_LEVEL: 0.5, // Fall speed increase per level
+            SPAWN_DECREASE_PER_LEVEL: 100, // Spawn interval decrease per level (ms)
+            MIN_SPAWN_INTERVAL: 400,       // Minimum spawn interval (ms)
+            
+            // Spawn probabilities
+            GIFT_PROBABILITY: 0.6, // 60% chance for gift, 40% for snowball
+        };
+
+        // ============================================
+        // DOM ELEMENTS
+        // ============================================
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreDisplay = document.getElementById('scoreDisplay');
+        const levelDisplay = document.getElementById('levelDisplay');
+        const highScoreDisplay = document.getElementById('highScoreDisplay');
+        const gameOverOverlay = document.getElementById('gameOverOverlay');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const finalHighScoreDisplay = document.getElementById('finalHighScore');
+        const newHighScoreMsg = document.getElementById('newHighScoreMsg');
+        const playAgainBtn = document.getElementById('playAgainBtn');
+
+        // ============================================
+        // GAME STATE
+        // ============================================
+        let score = 0;
+        let level = 1;
+        let highScore = 0;
+        let isGameOver = false;
+        let lastSpawnTime = 0;
+        let currentSpawnInterval = CONFIG.BASE_SPAWN_INTERVAL;
+        let currentFallSpeed = CONFIG.BASE_FALL_SPEED;
+
+        // Input state
+        const keys = {
+            left: false,
+            right: false
+        };
+
+        // Game objects arrays
+        let gifts = [];
+        let snowballs = [];
+
+        // ============================================
+        // SLEDGE CLASS
+        // ============================================
+        // The player-controlled sled at the bottom of the screen
+        class Sledge {
+            constructor() {
+                this.width = CONFIG.SLED_WIDTH;
+                this.height = CONFIG.SLED_HEIGHT;
+                this.x = (canvas.width - this.width) / 2; // Center horizontally
+                this.y = canvas.height - this.height - 20; // Near bottom
+                this.speed = CONFIG.SLED_SPEED;
+            }
+
+            // Update sled position based on keyboard input
+            update() {
+                if (keys.left && this.x > 0) {
+                    this.x -= this.speed;
+                }
+                if (keys.right && this.x < canvas.width - this.width) {
+                    this.x += this.speed;
+                }
+                
+                // Clamp position to canvas bounds
+                this.x = Math.max(0, Math.min(canvas.width - this.width, this.x));
+            }
+
+            // Render the sled on canvas
+            draw() {
+                // Sled body (wooden brown)
+                ctx.fillStyle = '#8B4513';
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+                
+                // Sled runners (dark metal)
+                ctx.fillStyle = '#2F2F2F';
+                ctx.fillRect(this.x - 5, this.y + this.height - 5, this.width + 10, 6);
+                
+                // Sled decoration (red stripe)
+                ctx.fillStyle = '#cc2222';
+                ctx.fillRect(this.x + 5, this.y + 5, this.width - 10, 8);
+                
+                // Sled highlights
+                ctx.fillStyle = '#A0522D';
+                ctx.fillRect(this.x + 5, this.y + 18, this.width - 10, 4);
+            }
+
+            // Get hitbox for collision detection
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+
+        // ============================================
+        // GIFT CLASS
+        // ============================================
+        // Falling gift objects that the player wants to catch
+        class Gift {
+            constructor() {
+                this.size = CONFIG.GIFT_SIZE;
+                this.x = Math.random() * (canvas.width - this.size);
+                this.y = -this.size; // Start above canvas
+                this.speed = currentFallSpeed;
+                this.rotation = 0;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+            }
+
+            // Update gift position (falling down)
+            update() {
+                this.y += this.speed;
+                this.rotation += this.rotationSpeed;
+            }
+
+            // Render the gift emoji on canvas
+            draw() {
+                ctx.save();
+                ctx.translate(this.x + this.size / 2, this.y + this.size / 2);
+                ctx.rotate(this.rotation);
+                ctx.font = `${this.size}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🎁', 0, 0);
+                ctx.restore();
+            }
+
+            // Get hitbox for collision detection
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.size,
+                    height: this.size
+                };
+            }
+
+            // Check if gift is off screen (below canvas)
+            isOffScreen() {
+                return this.y > canvas.height;
+            }
+        }
+
+        // ============================================
+        // SNOWBALL CLASS
+        // ============================================
+        // Falling obstacles that the player must avoid
+        class Snowball {
+            constructor() {
+                this.radius = CONFIG.SNOWBALL_RADIUS;
+                this.x = Math.random() * (canvas.width - this.radius * 2) + this.radius;
+                this.y = -this.radius; // Start above canvas
+                this.speed = currentFallSpeed;
+            }
+
+            // Update snowball position (falling down)
+            update() {
+                this.y += this.speed;
+            }
+
+            // Render the snowball as a white circle with shading
+            draw() {
+                // Outer glow
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y, 0,
+                    this.x, this.y, this.radius
+                );
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                gradient.addColorStop(0.7, 'rgba(220, 235, 255, 1)');
+                gradient.addColorStop(1, 'rgba(180, 200, 230, 0.8)');
+                
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+                
+                // Inner highlight
+                ctx.beginPath();
+                ctx.arc(this.x - 4, this.y - 4, this.radius * 0.3, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.fill();
+            }
+
+            // Get hitbox for collision detection (circle represented as center + radius)
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    radius: this.radius
+                };
+            }
+
+            // Check if snowball is off screen (below canvas)
+            isOffScreen() {
+                return this.y > canvas.height + this.radius;
+            }
+        }
+
+        // ============================================
+        // COLLISION DETECTION
+        // ============================================
+        // Checks if the sled hitbox intersects with a rectangular object (gift)
+        function checkRectCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        // Checks if a rectangle (sled) intersects with a circle (snowball)
+        function checkRectCircleCollision(rect, circle) {
+            // Find the closest point on the rectangle to the circle center
+            const closestX = Math.max(rect.x, Math.min(circle.x, rect.x + rect.width));
+            const closestY = Math.max(rect.y, Math.min(circle.y, rect.y + rect.height));
+            
+            // Calculate distance from circle center to closest point
+            const distanceX = circle.x - closestX;
+            const distanceY = circle.y - closestY;
+            const distanceSquared = distanceX * distanceX + distanceY * distanceY;
+            
+            // Collision if distance is less than circle radius
+            return distanceSquared < circle.radius * circle.radius;
+        }
+
+        // ============================================
+        // HIGH SCORE SYSTEM (localStorage)
+        // ============================================
+        // Load high score from localStorage
+        function loadHighScore() {
+            const stored = localStorage.getItem('santaSledRunHighScore');
+            if (stored) {
+                highScore = parseInt(stored, 10);
+                if (isNaN(highScore)) highScore = 0;
+            }
+            highScoreDisplay.textContent = highScore;
+        }
+
+        // Save high score to localStorage if current score beats it
+        function saveHighScore() {
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('santaSledRunHighScore', highScore.toString());
+                return true; // Indicates new high score
+            }
+            return false;
+        }
+
+        // ============================================
+        // DIFFICULTY PROGRESSION
+        // ============================================
+        // Calculate current level based on score
+        function calculateLevel() {
+            return Math.floor(score / CONFIG.DIFFICULTY_INCREMENT) + 1;
+        }
+
+        // Update difficulty settings based on current level
+        function updateDifficulty() {
+            const newLevel = calculateLevel();
+            
+            if (newLevel !== level) {
+                level = newLevel;
+                levelDisplay.textContent = level;
+            }
+            
+            // Increase fall speed based on level
+            currentFallSpeed = CONFIG.BASE_FALL_SPEED + 
+                               (level - 1) * CONFIG.SPEED_INCREASE_PER_LEVEL;
+            
+            // Decrease spawn interval based on level (more frequent spawns)
+            currentSpawnInterval = Math.max(
+                CONFIG.MIN_SPAWN_INTERVAL,
+                CONFIG.BASE_SPAWN_INTERVAL - (level - 1) * CONFIG.SPAWN_DECREASE_PER_LEVEL
+            );
+        }
+
+        // ============================================
+        // OBJECT SPAWNING
+        // ============================================
+        // Spawn either a gift or snowball based on probability
+        function spawnObject(timestamp) {
+            if (timestamp - lastSpawnTime >= currentSpawnInterval) {
+                lastSpawnTime = timestamp;
+                
+                // Determine whether to spawn gift or snowball
+                if (Math.random() < CONFIG.GIFT_PROBABILITY) {
+                    gifts.push(new Gift());
+                } else {
+                    snowballs.push(new Snowball());
+                }
+            }
+        }
+
+        // ============================================
+        // GAME LOOP
+        // ============================================
+        let sledge;
+
+        // Main game loop using requestAnimationFrame
+        function gameLoop(timestamp) {
+            // Stop loop if game is over
+            if (isGameOver) return;
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw background decorations (stars)
+            drawBackground();
+            
+            // Update difficulty based on score
+            updateDifficulty();
+            
+            // Spawn new objects
+            spawnObject(timestamp);
+            
+            // Update sled
+            sledge.update();
+            
+            // Update and check gifts
+            for (let i = gifts.length - 1; i >= 0; i--) {
+                const gift = gifts[i];
+                gift.speed = currentFallSpeed; // Update speed for difficulty
+                gift.update();
+                
+                // Check collision with sled
+                if (checkRectCollision(sledge.getHitbox(), gift.getHitbox())) {
+                    // Gift caught! Increase score
+                    score++;
+                    scoreDisplay.textContent = score;
+                    gifts.splice(i, 1);
+                    continue;
+                }
+                
+                // Remove if off screen
+                if (gift.isOffScreen()) {
+                    gifts.splice(i, 1);
+                }
+            }
+            
+            // Update and check snowballs
+            for (let i = snowballs.length - 1; i >= 0; i--) {
+                const snowball = snowballs[i];
+                snowball.speed = currentFallSpeed; // Update speed for difficulty
+                snowball.update();
+                
+                // Check collision with sled
+                if (checkRectCircleCollision(sledge.getHitbox(), snowball.getHitbox())) {
+                    // Hit by snowball! Game over
+                    triggerGameOver();
+                    return;
+                }
+                
+                // Remove if off screen
+                if (snowball.isOffScreen()) {
+                    snowballs.splice(i, 1);
+                }
+            }
+            
+            // Draw all game objects
+            gifts.forEach(gift => gift.draw());
+            snowballs.forEach(snowball => snowball.draw());
+            sledge.draw();
+            
+            // Draw ground line
+            drawGround();
+            
+            // Continue game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ============================================
+        // RENDERING HELPERS
+        // ============================================
+        // Draw background stars/decorations
+        function drawBackground() {
+            // Draw some static stars
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            const starPositions = [
+                [50, 50], [150, 80], [300, 40], [420, 90], [200, 150],
+                [80, 200], [380, 180], [450, 250], [120, 300], [350, 320]
+            ];
+            starPositions.forEach(([x, y]) => {
+                ctx.beginPath();
+                ctx.arc(x, y, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        // Draw ground decoration
+        function drawGround() {
+            // Snow ground
+            const groundGradient = ctx.createLinearGradient(0, canvas.height - 15, 0, canvas.height);
+            groundGradient.addColorStop(0, 'rgba(200, 220, 255, 0.3)');
+            groundGradient.addColorStop(1, 'rgba(150, 180, 220, 0.5)');
+            ctx.fillStyle = groundGradient;
+            ctx.fillRect(0, canvas.height - 15, canvas.width, 15);
+        }
+
+        // ============================================
+        // GAME OVER
+        // ============================================
+        function triggerGameOver() {
+            isGameOver = true;
+            
+            // Check and save high score
+            const isNewHighScore = saveHighScore();
+            
+            // Update game over display
+            finalScoreDisplay.textContent = score;
+            finalHighScoreDisplay.textContent = highScore;
+            highScoreDisplay.textContent = highScore;
+            
+            // Show new high score message if applicable
+            newHighScoreMsg.style.display = isNewHighScore ? 'block' : 'none';
+            
+            // Show overlay
+            gameOverOverlay.classList.add('visible');
+        }
+
+        // ============================================
+        // GAME RESET
+        // ============================================
+        function resetGame() {
+            // Reset game state
+            score = 0;
+            level = 1;
+            isGameOver = false;
+            lastSpawnTime = 0;
+            currentSpawnInterval = CONFIG.BASE_SPAWN_INTERVAL;
+            currentFallSpeed = CONFIG.BASE_FALL_SPEED;
+            
+            // Clear objects
+            gifts = [];
+            snowballs = [];
+            
+            // Reset sled
+            sledge = new Sledge();
+            
+            // Update displays
+            scoreDisplay.textContent = '0';
+            levelDisplay.textContent = '1';
+            
+            // Hide overlay
+            gameOverOverlay.classList.remove('visible');
+            
+            // Start game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // ============================================
+        // INPUT HANDLING
+        // ============================================
+        // Keyboard event listeners for sled movement
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = true;
+                e.preventDefault(); // Prevent page scrolling
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = true;
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+                keys.left = false;
+            }
+            if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+                keys.right = false;
+            }
+        });
+
+        // Play again button handler
+        playAgainBtn.addEventListener('click', resetGame);
+
+        // ============================================
+        // RESPONSIVE CANVAS
+        // ============================================
+        function resizeCanvas() {
+            const container = canvas.parentElement;
+            const maxWidth = Math.min(480, window.innerWidth - 80);
+            const scale = maxWidth / 480;
+            
+            if (scale < 1) {
+                canvas.style.width = maxWidth + 'px';
+                canvas.style.height = (600 * scale) + 'px';
+            } else {
+                canvas.style.width = '480px';
+                canvas.style.height = '600px';
+            }
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+
+        // ============================================
+        // GAME INITIALIZATION
+        // ============================================
+        function initGame() {
+            // Load high score from storage
+            loadHighScore();
+            
+            // Resize canvas for current screen
+            resizeCanvas();
+            
+            // Create sled
+            sledge = new Sledge();
+            
+            // Start game loop
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Start the game when page loads
+        initGame();
+    </script>
+</body>
+</html>
+
